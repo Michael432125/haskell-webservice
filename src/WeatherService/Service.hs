@@ -1,7 +1,10 @@
 {-# LANGUAGE OverloadedStrings, FlexibleContexts, TypeFamilies, QuasiQuotes, TemplateHaskell, DeriveGeneric #-}
 module WeatherService.Service (WeatherField(..)
                               , dayHandler
-                              , dayPutHandler) where
+                              , dayPutHandler
+                              , rangeHandler
+                              , maxHandler
+                              , aboveHandler) where
 {-| Semester 2 assignment for CI285, University of Brighton
     Jim Burton <j.burton@brighton.ac.uk>
 -}
@@ -40,6 +43,42 @@ dayHandler d conn = do
   r <- liftIO (queryNamed conn "SELECT the_date, temperature \
                                \ FROM  weather \
                                \ WHERE the_date = :dt" [":dt" := d] :: IO [WeatherField])
+  liftIO $ debugM "Date Query" (listToOutput r) -- ^ NB example of how to output debug messages
+  case r of
+    [] -> notFoundHandler
+    _  -> ok $ toResponse (listToOutput r)
+
+
+{-Handle requests for Ranges-}
+rangeHandler :: Text -> Text -> Connection -> ServerPart Response
+rangeHandler d l conn = do
+  r <- liftIO (queryNamed conn "SELECT the_date, temperature \
+                               \ FROM  weather \
+                               \ WHERE the_date BETWEEN :dt AND :dl" [":dt" := d, ":dl" := l] :: IO [WeatherField])
+  liftIO $ debugM "Date Query" (listToOutput r) -- ^ NB example of how to output debug messages
+  case r of
+    [] -> notFoundHandler
+    _  -> ok $ toResponse (listToOutput r)
+
+
+{-Handle requests for Max-}
+maxHandler :: Text -> Text -> Connection -> ServerPart Response
+maxHandler d t conn = do
+  r <- liftIO (queryNamed conn "SELECT the_date, MAX(temperature) \
+                               \ FROM  weather \
+                               \ WHERE the_date BETWEEN :dt AND :dl" [":dt" := d, ":dl" := t] :: IO [WeatherField])
+  liftIO $ debugM "Date Query" (listToOutput r) -- ^ NB example of how to output debug messages
+  case r of
+    [] -> notFoundHandler
+    _  -> ok $ toResponse (listToOutput r)
+
+
+{-Handle requests for Above-}
+aboveHandler :: Text -> Connection -> ServerPart Response
+aboveHandler t conn = do
+  r <- liftIO (queryNamed conn "SELECT the_date, temperature \
+                               \ FROM  weather \
+                               \ WHERE temperature >= :dt" [":dt" := t] :: IO [WeatherField])
   liftIO $ debugM "Date Query" (listToOutput r) -- ^ NB example of how to output debug messages
   case r of
     [] -> notFoundHandler
